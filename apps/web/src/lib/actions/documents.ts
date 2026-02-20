@@ -1,7 +1,8 @@
 'use server'
 
-import prisma from '@/lib/prisma'
-import { DocumentType } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+
+type DocumentType = 'PROPOSAL_CLIENT' | 'INVOICE_DP' | 'INVOICE_PELUNASAN' | 'INVOICE_FULL' | 'SURAT_PERJANJIAN_MITRA' | 'PROPOSAL_MITRA'
 
 // ──────────────────────────────────────
 // Helper: Generate Nomor Dokumen Otomatis
