@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { getDocumentsByMitra } from '@/lib/actions/documents'
+import { sendDocumentViaWhatsApp } from '@/lib/actions/whatsapp'
 
 type DocumentType = 'PROPOSAL_CLIENT' | 'INVOICE_DP' | 'INVOICE_PELUNASAN' | 'INVOICE_FULL' | 'SURAT_PERJANJIAN_MITRA' | 'PROPOSAL_MITRA'
 
@@ -78,6 +79,7 @@ export default function MitraDocuments({
     const [documents, setDocuments] = useState<DocumentItem[]>([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<DocumentType | 'ALL'>('ALL')
+    const [sendingWaId, setSendingWaId] = useState<string | null>(null)
 
     useEffect(() => {
         loadDocuments()
@@ -92,6 +94,27 @@ export default function MitraDocuments({
             console.error('Error loading documents:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    async function handleSendWa(doc: DocumentItem) {
+        // Tentukan nomor tujuan berdasarkan tipe dokumen
+        const targetPhone = prompt('Masukkan nomor WhatsApp tujuan (contoh: 08xxx):')
+        if (!targetPhone) return
+
+        setSendingWaId(doc.id)
+        try {
+            const result = await sendDocumentViaWhatsApp(doc.id, targetPhone)
+            if (result.success) {
+                alert('✅ Berhasil dikirim via WhatsApp!')
+                loadDocuments() // refresh status
+            } else {
+                alert(`❌ ${result.message}`)
+            }
+        } catch (err: any) {
+            alert(`Error: ${err.message}`)
+        } finally {
+            setSendingWaId(null)
         }
     }
 
@@ -254,6 +277,22 @@ export default function MitraDocuments({
 
                             {/* Actions */}
                             <div style={{ display: 'flex', gap: 6 }}>
+                                {doc.fileUrl && !doc.sentViaWa && (
+                                    <button
+                                        onClick={() => handleSendWa(doc)}
+                                        disabled={sendingWaId === doc.id}
+                                        style={{
+                                            ...actionBtnStyle,
+                                            background: sendingWaId === doc.id ? '#d1d5db' : '#25d366',
+                                            color: '#fff',
+                                            border: 'none',
+                                            opacity: sendingWaId === doc.id ? 0.6 : 1,
+                                        }}
+                                        title="Kirim via WhatsApp"
+                                    >
+                                        {sendingWaId === doc.id ? '⏳' : '📲'}
+                                    </button>
+                                )}
                                 {doc.fileUrl && (
                                     <a
                                         href={doc.fileUrl}

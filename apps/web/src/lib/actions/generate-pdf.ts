@@ -39,7 +39,7 @@ export async function prepareProposalClient(leadId: string) {
         include: {
             project: true,
         },
-    })
+    }) as any
     if (!lead) throw new Error('Lead tidak ditemukan')
 
     // Ambil setting bank
@@ -91,7 +91,7 @@ export async function prepareInvoiceClient(
             lead: true,
             incomes: true,
         },
-    })
+    }) as any
     if (!project) throw new Error('Project tidak ditemukan')
 
     const bankSettings = await prisma.setting.findMany({
@@ -112,7 +112,7 @@ export async function prepareInvoiceClient(
         .reduce((sum: number, i: { amount: number }) => sum + i.amount, 0)
 
     // Cari proposal terkait
-    const proposalDoc = await prisma.document.findFirst({
+    const proposalDoc = await (prisma as any).document.findFirst({
         where: { leadId: project.leadId, type: 'PROPOSAL_CLIENT' },
     })
 
