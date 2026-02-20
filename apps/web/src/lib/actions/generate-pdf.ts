@@ -1,7 +1,8 @@
 'use server'
 
-import prisma from '@/lib/prisma'
-import { DocumentType } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+
+type DocumentType = 'PROPOSAL_CLIENT' | 'INVOICE_DP' | 'INVOICE_PELUNASAN' | 'INVOICE_FULL' | 'SURAT_PERJANJIAN_MITRA' | 'PROPOSAL_MITRA'
 import { createDocument, formatTanggalIndo, formatTanggalPendek, formatRupiah } from './documents'
 
 // ──────────────────────────────────────
@@ -107,8 +108,8 @@ export async function prepareInvoiceClient(
     const persentase = jenisInvoice === 'FULL' ? 100 : 50
     const jumlahTagihan = Math.round(totalBiaya * (persentase / 100))
     const dpSudahBayar = project.incomes
-        .filter(i => i.paymentType === 'DP')
-        .reduce((sum, i) => sum + i.amount, 0)
+        .filter((i: { paymentType: string }) => i.paymentType === 'DP')
+        .reduce((sum: number, i: { amount: number }) => sum + i.amount, 0)
 
     // Cari proposal terkait
     const proposalDoc = await prisma.document.findFirst({

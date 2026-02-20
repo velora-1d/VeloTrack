@@ -16,18 +16,18 @@ import {
     CheckCircle2,
     Loader2
 } from "lucide-react";
-import { MitraManagement } from "@/components/settings/mitra-management";
+
 import { updateSettings } from "@/lib/actions/settings";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
 interface SettingsClientProps {
     initialSettings: Record<string, string>;
-    mitraList: any[];
+
     auditLogs: any[];
 }
 
-export function SettingsClient({ initialSettings, mitraList, auditLogs }: SettingsClientProps) {
+export function SettingsClient({ initialSettings, auditLogs }: SettingsClientProps) {
     const [activeTab, setActiveTab] = useState("general");
     const [isSaving, setIsSaving] = useState(false);
     const [settings, setSettings] = useState(initialSettings);
@@ -47,7 +47,6 @@ export function SettingsClient({ initialSettings, mitraList, auditLogs }: Settin
 
     const TABS = [
         { id: "general", label: "General", icon: <Settings size={18} /> },
-        { id: "users", label: "Mitra Management", icon: <Users size={18} /> },
         { id: "notifications", label: "Notifications", icon: <Bell size={18} /> },
         { id: "integrations", label: "Integrations", icon: <Zap size={18} /> },
         { id: "audit", label: "Audit Logs", icon: <History size={18} /> },
@@ -67,8 +66,8 @@ export function SettingsClient({ initialSettings, mitraList, auditLogs }: Settin
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-[13px] font-bold transition-all ${activeTab === tab.id
-                                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
-                                : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
+                            : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                             }`}
                     >
                         {tab.icon}
@@ -123,11 +122,7 @@ export function SettingsClient({ initialSettings, mitraList, auditLogs }: Settin
                     </form>
                 )}
 
-                {activeTab === "users" && (
-                    <div className="p-8">
-                        <MitraManagement initialData={mitraList} />
-                    </div>
-                )}
+
 
                 {activeTab === "notifications" && (
                     <div className="p-8 space-y-8">

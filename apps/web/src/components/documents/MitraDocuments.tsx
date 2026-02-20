@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { DocumentType } from '@prisma/client'
 import { getDocumentsByMitra } from '@/lib/actions/documents'
+
+type DocumentType = 'PROPOSAL_CLIENT' | 'INVOICE_DP' | 'INVOICE_PELUNASAN' | 'INVOICE_FULL' | 'SURAT_PERJANJIAN_MITRA' | 'PROPOSAL_MITRA'
 
 // ──────────────────────────────────────
 // Tipe

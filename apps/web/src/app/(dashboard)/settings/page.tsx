@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Metadata } from "next";
 import { SettingsClient } from "./client";
-import { getSettings, getMitraList, getSystemAuditLogs } from "@/lib/actions/settings";
+import { getSettings, getSystemAuditLogs } from "@/lib/actions/settings";
 
 export const metadata: Metadata = {
     title: "Settings | VeloTrack Control",
@@ -10,10 +10,9 @@ export const metadata: Metadata = {
 
 export default async function SettingsPage() {
     // Parallel Fetching initial data
-    const [settings, mitraList, auditLogs] = await Promise.all([
+    const [settings, auditLogs] = await Promise.all([
         getSettings(),
-        getMitraList(),
-        getSystemAuditLogs(30) // Take latest 30 logs
+        getSystemAuditLogs(30)
     ]);
 
     return (
@@ -25,7 +24,6 @@ export default async function SettingsPage() {
             }>
                 <SettingsClient
                     initialSettings={settings}
-                    mitraList={mitraList as any}
                     auditLogs={auditLogs as any}
                 />
             </Suspense>
