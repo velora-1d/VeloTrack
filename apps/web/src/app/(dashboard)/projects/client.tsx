@@ -534,6 +534,50 @@ export function ProjectsClient({ initialData, totalPages, currentPage, mitraList
                                                 </div>
                                             )}
 
+                                            {/* Progress Timeline */}
+                                            <div className="bg-zinc-50/50 dark:bg-zinc-950/20 border border-zinc-100 dark:border-zinc-800/50 rounded-xl p-5">
+                                                <h4 className="text-sm font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                                                    <Clock className="w-4 h-4 text-indigo-500" />
+                                                    Progress Timeline
+                                                </h4>
+                                                {(() => {
+                                                    const statusLogs = detailPanel.data.auditLogs?.filter(
+                                                        (log: any) => log.action === "STATUS_CHANGE" || log.action === "CREATE"
+                                                    ) || [];
+
+                                                    if (statusLogs.length === 0) {
+                                                        return <p className="text-sm text-zinc-500">Belum ada perubahan status tercatat.</p>;
+                                                    }
+
+                                                    const statusColorMap: Record<string, string> = {
+                                                        TODO: "bg-zinc-400",
+                                                        ON_PROGRESS: "bg-blue-500",
+                                                        DONE: "bg-emerald-500",
+                                                        OVERDUE: "bg-rose-500",
+                                                        CREATE: "bg-indigo-500",
+                                                    };
+
+                                                    return (
+                                                        <div className="relative pl-4 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-5">
+                                                            {statusLogs.slice(0, 10).map((log: any) => {
+                                                                const dotColor = statusColorMap[log.action === "CREATE" ? "CREATE" : (log.details?.match(/→\s*(\w+)/)?.[1] || "TODO")] || "bg-zinc-400";
+                                                                return (
+                                                                    <div key={log.id} className="relative">
+                                                                        <div className={`absolute w-3 h-3 rounded-full ${dotColor} -left-[23px] top-0.5 ring-4 ring-white dark:ring-zinc-900`}></div>
+                                                                        <p className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 leading-snug">
+                                                                            {log.details}
+                                                                        </p>
+                                                                        <p className="text-xs text-zinc-500 mt-1">
+                                                                            {format(new Date(log.createdAt), "dd MMM yyyy, HH:mm", { locale: idLocale })}
+                                                                        </p>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+
                                             {/* Aksi Cepat (hanya jika belum DONE) */}
                                             {detailPanel.data.status !== "DONE" && isOwner && (
                                                 <div className="bg-zinc-50 dark:bg-zinc-950/20 border border-zinc-200/50 dark:border-zinc-800/50 p-5 rounded-xl">

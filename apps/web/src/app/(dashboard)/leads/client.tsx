@@ -528,12 +528,42 @@ export function LeadsClient({
                                         {detailModal.data.status === "DEAL" && (
                                             <div className="p-5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-xl flex items-center justify-between">
                                                 <div>
-                                                    <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-400 mb-1">Lead Sukses</h4>
-                                                    <p className="text-sm text-emerald-700 dark:text-emerald-500/80">Data ini telah berhasil dikonversi dan diamankan.</p>
+                                                    <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-400 mb-1">Lead Sukses — Deal Terkunci ✅</h4>
+                                                    <p className="text-sm text-emerald-700 dark:text-emerald-500/80">Data ini telah berhasil dikonversi menjadi proyek aktif.</p>
                                                 </div>
                                                 {detailModal.data.project && (
-                                                    <button className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition-colors">Lihat Project</button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setDetailModal(prev => ({ ...prev, open: false }));
+                                                            router.push(`/projects`);
+                                                        }}
+                                                        className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shrink-0"
+                                                    >
+                                                        <ArrowRight className="w-4 h-4" />
+                                                        Lihat Project
+                                                    </button>
                                                 )}
+                                            </div>
+                                        )}
+
+                                        {detailModal.data.status === "CANCEL" && (
+                                            <div className="p-5 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-xl">
+                                                <h4 className="text-sm font-bold text-rose-900 dark:text-rose-400 mb-2 flex items-center gap-2">
+                                                    <AlertCircle className="w-4 h-4 text-rose-500" />
+                                                    Lead Dibatalkan
+                                                </h4>
+                                                {(() => {
+                                                    const cancelNote = detailModal.data.notes?.find((n: any) => n.content?.startsWith("[CANCEL REASON]:"));
+                                                    const reason = cancelNote?.content?.replace("[CANCEL REASON]: ", "") || "Tidak ada alasan yang dicatat.";
+                                                    return (
+                                                        <div>
+                                                            <p className="text-xs font-bold text-rose-600 dark:text-rose-400/80 mb-1">Alasan Pembatalan:</p>
+                                                            <p className="text-sm text-rose-800 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/20 p-3 rounded-lg italic">
+                                                                "{reason}"
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         )}
                                     </div>
