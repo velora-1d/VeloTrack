@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../apps/web/node_modules/.prisma/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id          String     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  email       String?    @unique
+  username    String?    @unique
+  password    String?    // Hash password jika menggunakan local auth
+  name        String
+  whatsapp    String?
+  address     String?
+  bankName    String?
+  bankAccount String?
+  bankHolder  String?
+  role        Role       @default(MITRA)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @default(now()) @updatedAt
+  auditLogs   AuditLog[]
+  leads       Lead[]     @relation("MitraLeads")
+  projects    Project[]  @relation("ProjectPIC")
+}
+
+model Lead {
+  id        String     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name      String
+  contact   String
+  source    String
+  status    LeadStatus @default(PENDING)
+  mitraId   String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now()) @updatedAt
+  mitra     User?       @relation("MitraLeads", fields: [mitraId], references: [id])
+  notes     LeadNote[]
+  project   Project?
+
+  @@index([createdAt])
+  @@index([mitraId])
+  @@index([status])
+}
+
+model LeadNote {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  leadId    String
+  content   String
+  createdBy String
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model Project {
+  id         String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name       String
+  clientName String
+  status     ProjectStatus @default(TODO)
+  deadline   DateTime
+  startDate  DateTime      @default(now())
+  leadId     String        @unique
+  picId      String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @default(now()) @updatedAt
+  expenses   Expense[]
+  incomes    Income[]
+  lead       Lead          @relation(fields: [leadId], references: [id])
+  pic        User?         @relation("ProjectPIC", fields: [picId], references: [id])
+  notes      ProjectNote[]
+
+  @@index([deadline])
+  @@index([picId])
+  @@index([status])
+}
+
+model ProjectNote {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  projectId String
+  content   String
+  createdBy String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Income {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  date        DateTime
+  paymentType String
+  amount      Float
+  notes       String?
+  projectId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  project     Project  @relation(fields: [projectId], references: [id])
+
+  @@index([date])
+  @@index([projectId])
+}
+
+model Expense {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  date      DateTime
+  category  String
+  amount    Float
+  notes     String?
+  projectId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  @@index([category])
+  @@index([date])
+  @@index([projectId])
+}
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  action     String
+  entityType String
+  entityId   String
+  details    String?
+  userId     String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+model Setting {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  key       String   @unique
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+enum Role {
+  OWNER
+  MITRA
+}
+
+enum LeadStatus {
+  PENDING
+  DEAL
+  CANCEL
+}
+
+enum ProjectStatus {
+  TODO
+  ON_PROGRESS
+  DONE
+  OVERDUE
+}
