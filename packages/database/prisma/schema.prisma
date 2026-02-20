@@ -24,15 +24,20 @@ model User {
   isActive    Boolean    @default(true)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @default(now()) @updatedAt
-  auditLogs   AuditLog[]
-  leads       Lead[]     @relation("MitraLeads")
-  projects    Project[]  @relation("ProjectPIC")
+  auditLogs        AuditLog[]
+  leads            Lead[]      @relation("MitraLeads")
+  projects         Project[]   @relation("ProjectPIC")
+  documents        Document[]  @relation("MitraDocuments")
+  documentsCreated Document[]  @relation("DocumentCreator")
 }
 
 model Lead {
   id        String     @id @default(dbgenerated("(gen_random_uuid())::text"))
   name      String
   contact   String
+  email     String?
+  address   String?
+  value     Float?
   source    String
   status    LeadStatus @default(PENDING)
   mitraId   String?
@@ -41,6 +46,7 @@ model Lead {
   mitra     User?       @relation("MitraLeads", fields: [mitraId], references: [id])
   notes     LeadNote[]
   project   Project?
+  documents Document[] @relation("LeadDocuments")
 
   @@index([createdAt])
   @@index([mitraId])
@@ -65,6 +71,7 @@ model Project {
   status     ProjectStatus @default(TODO)
   deadline   DateTime
   startDate  DateTime      @default(now())
+  value      Float?
   leadId     String        @unique
   picId      String?
   createdAt  DateTime      @default(now())
@@ -74,6 +81,7 @@ model Project {
   lead       Lead          @relation(fields: [leadId], references: [id])
   pic        User?         @relation("ProjectPIC", fields: [picId], references: [id])
   notes      ProjectNote[]
+  documents  Document[]    @relation("ProjectDocuments")
 
   @@index([deadline])
   @@index([picId])
@@ -144,6 +152,34 @@ model Setting {
   updatedAt DateTime @default(now()) @updatedAt
 }
 
+model Document {
+  id           String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  documentNo   String       @unique
+  type         DocumentType
+  title        String
+  recipientName String
+  fileUrl      String?
+  sentViaWa    Boolean      @default(false)
+  sentAt       DateTime?
+  leadId       String?
+  projectId    String?
+  mitraId      String?
+  createdBy    String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @default(now()) @updatedAt
+
+  lead         Lead?        @relation("LeadDocuments", fields: [leadId], references: [id])
+  project      Project?     @relation("ProjectDocuments", fields: [projectId], references: [id])
+  mitra        User?        @relation("MitraDocuments", fields: [mitraId], references: [id])
+  creator      User         @relation("DocumentCreator", fields: [createdBy], references: [id])
+
+  @@index([type])
+  @@index([leadId])
+  @@index([projectId])
+  @@index([mitraId])
+  @@index([createdAt])
+}
+
 enum Role {
   OWNER
   MITRA
@@ -160,4 +196,13 @@ enum ProjectStatus {
   ON_PROGRESS
   DONE
   OVERDUE
+}
+
+enum DocumentType {
+  PROPOSAL_CLIENT
+  INVOICE_DP
+  INVOICE_PELUNASAN
+  INVOICE_FULL
+  SURAT_PERJANJIAN_MITRA
+  PROPOSAL_MITRA
 }
