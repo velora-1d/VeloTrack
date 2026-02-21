@@ -54,7 +54,9 @@ export async function updateSession(request: NextRequest) {
 
     // Jika tidak ada user dan mencoba akses root (/) -> Rewrite ke /login (URL tetap /)
     if (!user && path === '/') {
-        return NextResponse.rewrite(new URL('/login', request.url));
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        return NextResponse.rewrite(url);
     }
 
     // Jika tidak ada user dan mencoba akses route rahasia -> Redirect ke root (yang mana adalah form login)
@@ -66,7 +68,9 @@ export async function updateSession(request: NextRequest) {
 
     // Jika ada user dan akses root (/) -> Rewrite ke /dashboard (URL tetap /)
     if (user && path === '/') {
-        return NextResponse.rewrite(new URL('/dashboard', request.url));
+        const url = request.nextUrl.clone();
+        url.pathname = '/dashboard';
+        return NextResponse.rewrite(url);
     }
 
     // Jika ada user dan mencoba akses halaman /login langsung -> Redirect ke root (dashboard)
