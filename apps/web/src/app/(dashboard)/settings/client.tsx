@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { updateSettings } from "@/lib/actions/settings";
+import { testWhatsAppConnection, saveFonnteToken } from "@/lib/actions/whatsapp";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -31,6 +32,12 @@ export function SettingsClient({ initialSettings, auditLogs }: SettingsClientPro
     const [activeTab, setActiveTab] = useState("general");
     const [isSaving, setIsSaving] = useState(false);
     const [settings, setSettings] = useState(initialSettings);
+
+    // WhatsApp Integration State
+    const [fonnteToken, setFonnteToken] = useState(initialSettings.FONNTE_TOKEN || "");
+    const [waStatus, setWaStatus] = useState<{ tested: boolean; success: boolean; message: string }>({ tested: false, success: false, message: "" });
+    const [isTesting, setIsTesting] = useState(false);
+    const [isSavingToken, setIsSavingToken] = useState(false);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -142,28 +149,92 @@ export function SettingsClient({ initialSettings, auditLogs }: SettingsClientPro
                         <SectionHeader title="API & Integrasi" description="Hubungkan VeloTrack dengan layanan pihak ketiga." />
 
                         <div className="grid grid-cols-1 gap-6">
-                            <div className="p-6 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-4">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <MessageSquare className="w-6 h-6 text-emerald-500" />
-                                    <div>
-                                        <h4 className="text-[14px] font-bold text-zinc-900 dark:text-white">WhatsApp Gateway (Fonnte)</h4>
-                                        <p className="text-xs text-zinc-500">Kirim notifikasi otomatis ke WhatsApp Mitra/Client.</p>
+                            {/* WhatsApp Fonnte — Fungsional */}
+                            <div className="p-6 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-5">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
+                                            <MessageSquare className="w-5 h-5 text-emerald-500" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-[14px] font-bold text-zinc-900 dark:text-white">WhatsApp Gateway (Fonnte)</h4>
+                                            <p className="text-xs text-zinc-500">Kirim dokumen & notifikasi otomatis ke WhatsApp.</p>
+                                        </div>
                                     </div>
+                                    {waStatus.tested && (
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${waStatus.success ? "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400"}`}>
+                                            {waStatus.success ? "✓ Terhubung" : "✗ Gagal"}
+                                        </span>
+                                    )}
                                 </div>
-                                <InputGroup label="Fonnte Token" value="*******" onChange={() => { }} placeholder="API Token Anda" />
-                                <button className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">Hubungkan Layanan →</button>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Fonnte API Token</label>
+                                    <input
+                                        type="password"
+                                        value={fonnteToken}
+                                        onChange={(e) => setFonnteToken(e.target.value)}
+                                        placeholder="Masukkan token dari dashboard Fonnte..."
+                                        className="w-full h-11 px-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all dark:text-white"
+                                    />
+                                </div>
+
+                                {waStatus.tested && (
+                                    <div className={`p-3 rounded-xl text-sm ${waStatus.success ? "bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20" : "bg-rose-50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20"}`}>
+                                        {waStatus.message}
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        disabled={!fonnteToken.trim() || isTesting}
+                                        onClick={async () => {
+                                            setIsTesting(true);
+                                            setWaStatus({ tested: false, success: false, message: "" });
+                                            try {
+                                                const result = await testWhatsAppConnection(fonnteToken);
+                                                setWaStatus({ tested: true, success: result.success, message: result.message });
+                                            } catch (err: any) {
+                                                setWaStatus({ tested: true, success: false, message: err.message });
+                                            } finally {
+                                                setIsTesting(false);
+                                            }
+                                        }}
+                                        className="h-10 px-5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {isTesting ? <><Loader2 className="w-4 h-4 animate-spin" /> Testing...</> : "Test Connection"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={!fonnteToken.trim() || isSavingToken}
+                                        onClick={async () => {
+                                            setIsSavingToken(true);
+                                            try {
+                                                const result = await saveFonnteToken(fonnteToken);
+                                                alert(result.message);
+                                            } catch (err: any) {
+                                                alert(err.message);
+                                            } finally {
+                                                setIsSavingToken(false);
+                                            }
+                                        }}
+                                        className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {isSavingToken ? <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</> : <><Save className="w-4 h-4" /> Simpan Token</>}
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="p-6 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-4">
+                            {/* Telegram — Placeholder */}
+                            <div className="p-6 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-4 opacity-60">
                                 <div className="flex items-center gap-3 mb-2">
                                     <Smartphone className="w-6 h-6 text-blue-500" />
                                     <div>
                                         <h4 className="text-[14px] font-bold text-zinc-900 dark:text-white">Telegram Bot</h4>
-                                        <p className="text-xs text-zinc-500">Notifikasi real-time via Telegram Channel.</p>
+                                        <p className="text-xs text-zinc-500">Notifikasi real-time via Telegram Channel. (Coming Soon)</p>
                                     </div>
                                 </div>
-                                <InputGroup label="Bot Username" value="@VeloTrackBot" onChange={() => { }} placeholder="API Token Anda" />
-                                <button className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">Test Connection →</button>
                             </div>
                         </div>
                     </div>

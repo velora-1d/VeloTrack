@@ -1,155 +1,184 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { sendWhatsAppWithDocument, formatPhoneNumber } from '@/lib/whatsapp/client'
-import {
-    templateSuratPerjanjian,
-    templateProposalClient,
-    templateInvoice,
-    templateProposalMitra,
-} from '@/lib/whatsapp/templates'
-import { markDocumentSent } from './documents'
-import { formatRupiah, formatTanggalPendek } from './documents'
+import { sendWhatsApp, testFonnteConnection } from '@/lib/fonnte'
+import { revalidatePath } from 'next/cache'
 
-// ──────────────────────────────────────
-// Kirim Dokumen via WhatsApp
-// ──────────────────────────────────────
-
-interface SendDocumentResult {
-    success: boolean
-    message: string
+async function getSystemOwnerId() {
+    let owner = await prisma.user.findFirst({ where: { role: "OWNER" } });
+    if (!owner) {
+        owner = await prisma.user.create({
+            data: { name: "Owner Admin", email: "owner@velotrack.local", role: "OWNER" }
+        });
+    }
+    return owner.id;
 }
 
-/**
- * Kirim dokumen via WhatsApp
- * Mengambil data dokumen, generate pesan template, kirim via Fonnte, dan update status
- */
-export async function sendDocumentViaWhatsApp(
-    documentId: string,
-    targetPhone: string
-): Promise<SendDocumentResult> {
-    // 1. Ambil data dokumen
-    const doc = await (prisma as any).document.findUnique({
-        where: { id: documentId },
-        include: {
-            lead: true,
-            project: true,
-            mitra: true,
-        },
-    })
+// ──────────────────────────────────────
+// 1. Kirim Dokumen via WhatsApp
+// ──────────────────────────────────────
+export async function sendDocumentViaWA(documentId: string, targetNumber: string) {
+    try {
+        // Ambil data dokumen
+        const doc = await (prisma as any).document.findUnique({
+            where: { id: documentId },
+            include: {
+                lead: { select: { name: true } },
+                project: { select: { name: true, clientName: true } },
+                mitra: { select: { name: true } },
+            },
+        })
 
-    if (!doc) {
-        return { success: false, message: 'Dokumen tidak ditemukan.' }
+        if (!doc) throw new Error('Dokumen tidak ditemukan.')
+        if (!doc.fileUrl) throw new Error('Dokumen belum memiliki file PDF. Generate terlebih dahulu.')
+
+        // Siapkan pesan
+        const recipientName = doc.recipientName || doc.lead?.name || doc.project?.clientName || 'Bapak/Ibu'
+        const message = buildDocumentMessage(doc.type, doc.documentNo, recipientName, doc.title)
+
+        // Kirim via Fonnte
+        await sendWhatsApp({
+            target: normalizePhone(targetNumber),
+            message,
+            fileUrl: doc.fileUrl,
+            filename: `${doc.documentNo.replace(/\//g, '-')}.pdf`,
+        })
+
+        // Update status dokumen
+        await (prisma as any).document.update({
+            where: { id: documentId },
+            data: {
+                sentViaWa: true,
+                sentAt: new Date(),
+            },
+        })
+
+        // Log audit
+        await prisma.auditLog.create({
+            data: {
+                action: 'SEND_WA',
+                entityType: 'DOCUMENT',
+                entityId: documentId,
+                details: `Dokumen ${doc.documentNo} dikirim via WhatsApp ke ${targetNumber}`,
+                userId: await getSystemOwnerId(),
+            },
+        })
+
+        revalidatePath('/documents')
+        revalidatePath('/mitra')
+
+        return { success: true, message: `Dokumen berhasil dikirim ke ${targetNumber}` }
+    } catch (error: any) {
+        console.error('Error sending document via WA:', error)
+        throw new Error(error.message || 'Gagal mengirim dokumen via WhatsApp.')
     }
+}
 
-    if (!doc.fileUrl) {
-        return { success: false, message: 'File PDF belum di-generate. Silakan generate terlebih dahulu.' }
+// ──────────────────────────────────────
+// 2. Kirim Notifikasi Teks via WhatsApp
+// ──────────────────────────────────────
+export async function sendNotificationWA(targetNumber: string, message: string) {
+    try {
+        await sendWhatsApp({
+            target: normalizePhone(targetNumber),
+            message,
+        })
+
+        return { success: true }
+    } catch (error: any) {
+        console.error('Error sending WA notification:', error)
+        throw new Error(error.message || 'Gagal mengirim notifikasi WhatsApp.')
     }
+}
 
-    // 2. Generate pesan berdasarkan tipe dokumen
-    let message = ''
-    const filename = `${doc.documentNo.replace(/\//g, '-')}.pdf`
+// ──────────────────────────────────────
+// 3. Test Koneksi WhatsApp (Settings)
+// ──────────────────────────────────────
+export async function testWhatsAppConnection(token?: string) {
+    try {
+        let tokenToTest = token
 
-    switch (doc.type) {
-        case 'SURAT_PERJANJIAN_MITRA':
-            message = templateSuratPerjanjian({
-                namaMitra: doc.recipientName,
-                nomorSurat: doc.documentNo,
-                tanggal: formatTanggalPendek(doc.createdAt),
-            })
-            break
+        if (!tokenToTest) {
+            tokenToTest = process.env.FONNTE_TOKEN || ''
 
-        case 'PROPOSAL_CLIENT':
-            message = templateProposalClient({
-                namaClient: doc.recipientName,
-                namaProyek: doc.project?.name || doc.title,
-                nomorProposal: doc.documentNo,
-                totalBiaya: doc.project?.value ? formatRupiah(doc.project.value) : '-',
-            })
-            break
-
-        case 'INVOICE_DP':
-        case 'INVOICE_PELUNASAN':
-        case 'INVOICE_FULL':
-            const jenisMap: Record<string, 'DP' | 'PELUNASAN' | 'FULL'> = {
-                INVOICE_DP: 'DP',
-                INVOICE_PELUNASAN: 'PELUNASAN',
-                INVOICE_FULL: 'FULL',
+            if (!tokenToTest) {
+                const setting = await prisma.setting.findUnique({
+                    where: { key: 'FONNTE_TOKEN' },
+                })
+                tokenToTest = setting?.value || ''
             }
-            message = templateInvoice({
-                namaClient: doc.recipientName,
-                namaProyek: doc.project?.name || doc.title,
-                nomorInvoice: doc.documentNo,
-                jenisInvoice: jenisMap[doc.type],
-                jumlahTagihan: '-',
-                jatuhTempo: formatTanggalPendek(new Date(doc.createdAt.getTime() + 7 * 24 * 60 * 60 * 1000)),
-            })
-            break
+        }
 
+        if (!tokenToTest) {
+            return { success: false, message: 'Token Fonnte belum diatur.' }
+        }
+
+        const result = await testFonnteConnection(tokenToTest)
+        return result
+    } catch (error: any) {
+        return { success: false, message: error.message }
+    }
+}
+
+// ──────────────────────────────────────
+// 4. Simpan Token Fonnte ke Database
+// ──────────────────────────────────────
+export async function saveFonnteToken(token: string) {
+    try {
+        await prisma.setting.upsert({
+            where: { key: 'FONNTE_TOKEN' },
+            update: { value: token },
+            create: { key: 'FONNTE_TOKEN', value: token },
+        })
+
+        await prisma.auditLog.create({
+            data: {
+                action: 'UPDATE_SETTING',
+                entityType: 'SETTING',
+                entityId: 'FONNTE_TOKEN',
+                details: 'Token Fonnte WhatsApp API diperbarui.',
+                userId: await getSystemOwnerId(),
+            },
+        })
+
+        revalidatePath('/settings')
+        return { success: true, message: 'Token Fonnte berhasil disimpan.' }
+    } catch (error: any) {
+        throw new Error('Gagal menyimpan token: ' + error.message)
+    }
+}
+
+// ──────────────────────────────────────
+// Helper: Normalisasi Nomor Telepon
+// ──────────────────────────────────────
+function normalizePhone(phone: string): string {
+    let normalized = phone.replace(/\s+/g, '').replace(/-/g, '')
+    if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1)
+    if (normalized.startsWith('+')) normalized = normalized.substring(1)
+    return normalized
+}
+
+// ──────────────────────────────────────
+// Helper: Buat Pesan Berdasarkan Tipe Dokumen
+// ──────────────────────────────────────
+function buildDocumentMessage(type: string, documentNo: string, recipientName: string, title: string): string {
+    const greetings = `Halo ${recipientName},`
+    const footer = `\n\n— *VeloTrack by Velora*\n_Dokumen ini dikirim secara otomatis._`
+
+    switch (type) {
+        case 'PROPOSAL_CLIENT':
+            return `${greetings}\n\nBerikut kami kirimkan *Proposal* untuk Anda.\n\n📄 *${title}*\nNo: ${documentNo}\n\nSilakan ditinjau. Jika ada pertanyaan, jangan ragu untuk menghubungi kami.${footer}`
+        case 'INVOICE_DP':
+            return `${greetings}\n\nBerikut *Invoice Down Payment* untuk project Anda.\n\n📄 *${title}*\nNo: ${documentNo}\n\nMohon dapat dilakukan pembayaran sesuai tenggat yang tertera. Terima kasih!${footer}`
+        case 'INVOICE_PELUNASAN':
+            return `${greetings}\n\nBerikut *Invoice Pelunasan* untuk project Anda.\n\n📄 *${title}*\nNo: ${documentNo}\n\nMohon dapat segera dilakukan pelunasan. Terima kasih atas kerjasamanya!${footer}`
+        case 'INVOICE_FULL':
+            return `${greetings}\n\nBerikut *Invoice* tagihan penuh untuk project Anda.\n\n📄 *${title}*\nNo: ${documentNo}\n\nMohon dapat dilakukan pembayaran sesuai tenggat. Terima kasih!${footer}`
+        case 'SURAT_PERJANJIAN_MITRA':
+            return `${greetings}\n\nBerikut *Surat Perjanjian Kerjasama* untuk Anda.\n\n📄 *${title}*\nNo: ${documentNo}\n\nSilakan dibaca dan ditandatangani. Hubungi kami jika ada yang perlu didiskusikan.${footer}`
         case 'PROPOSAL_MITRA':
-            message = templateProposalMitra({
-                namaCalonMitra: doc.recipientName,
-                nomorProposal: doc.documentNo,
-            })
-            break
-
+            return `${greetings}\n\nBerikut *Proposal Kerjasama Mitra* untuk Anda.\n\n📄 *${title}*\nNo: ${documentNo}\n\nSilakan ditinjau. Kami menantikan kerjasama yang baik!${footer}`
         default:
-            message = `Dokumen ${doc.documentNo} — ${doc.title}`
+            return `${greetings}\n\nBerikut dokumen *${title}* (No: ${documentNo}) untuk Anda.\n\nSilakan ditinjau.${footer}`
     }
-
-    // 3. Kirim via WhatsApp
-    const result = await sendWhatsAppWithDocument(
-        targetPhone,
-        message,
-        doc.fileUrl,
-        filename
-    )
-
-    // 4. Update status jika berhasil
-    if (result.success) {
-        await markDocumentSent(documentId)
-    }
-
-    return {
-        success: result.success,
-        message: result.message,
-    }
-}
-
-/**
- * Kirim Surat Perjanjian ke Mitra via WhatsApp
- * Shortcut yang otomatis ambil nomor WA dari profil mitra
- */
-export async function sendSuratPerjanjianToMitra(
-    documentId: string,
-    mitraId: string
-): Promise<SendDocumentResult> {
-    const mitra = await prisma.user.findUnique({
-        where: { id: mitraId },
-    })
-
-    if (!mitra?.whatsapp) {
-        return { success: false, message: 'Nomor WhatsApp mitra belum diisi di profil.' }
-    }
-
-    return sendDocumentViaWhatsApp(documentId, mitra.whatsapp)
-}
-
-/**
- * Kirim dokumen ke Lead/Client via WhatsApp
- * Shortcut yang otomatis ambil nomor kontak dari data lead
- */
-export async function sendDocumentToClient(
-    documentId: string,
-    leadId: string
-): Promise<SendDocumentResult> {
-    const lead = await prisma.lead.findUnique({
-        where: { id: leadId },
-    })
-
-    if (!lead?.contact) {
-        return { success: false, message: 'Nomor kontak lead belum diisi.' }
-    }
-
-    return sendDocumentViaWhatsApp(documentId, lead.contact)
 }
