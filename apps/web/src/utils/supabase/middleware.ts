@@ -52,29 +52,15 @@ export async function updateSession(request: NextRequest) {
 
     const path = request.nextUrl.pathname;
 
-    // Jika tidak ada user dan mencoba akses root (/) -> Rewrite ke /login (URL tetap /)
-    if (!user && path === '/') {
-        const url = request.nextUrl.clone();
-        url.pathname = '/login';
-        return NextResponse.rewrite(url);
-    }
-
-    // Jika tidak ada user dan mencoba akses route rahasia -> Redirect ke root (yang mana adalah form login)
-    if (!user && isProtectedRoute && path !== '/') {
+    // Mencegah akses langsung ke /login atau /dashboard di URL bar (memaksa URL di /)
+    if (path === '/login' || path === '/dashboard' || path === '/dashboard/') {
         const url = request.nextUrl.clone();
         url.pathname = '/';
         return NextResponse.redirect(url);
     }
 
-    // Jika ada user dan akses root (/) -> Rewrite ke /dashboard (URL tetap /)
-    if (user && path === '/') {
-        const url = request.nextUrl.clone();
-        url.pathname = '/dashboard';
-        return NextResponse.rewrite(url);
-    }
-
-    // Jika ada user dan mencoba akses halaman /login langsung -> Redirect ke root (dashboard)
-    if (user && isAuthRoute) {
+    // Jika tidak ada user dan mencoba akses route rahasia selain root -> Redirect ke /
+    if (!user && isProtectedRoute && path !== '/') {
         const url = request.nextUrl.clone();
         url.pathname = '/';
         return NextResponse.redirect(url);

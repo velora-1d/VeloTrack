@@ -1,3 +1,18 @@
-export default function Home() {
-  return <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex justify-center items-center text-sm text-zinc-500">Memuat...</div>;
+import { getUserSession } from "@/utils/supabase/auth";
+import LoginPage from "./login/page";
+import DashboardLayout from "./(dashboard)/layout";
+import DashboardPage from "./(dashboard)/dashboard/page";
+
+export default async function Home() {
+  const user = await getUserSession();
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  return (
+    <DashboardLayout>
+      <DashboardPage />
+    </DashboardLayout>
+  );
 }
