@@ -27,7 +27,11 @@ export default function LoginPage() {
         setErrorMessage(result.error);
         setIsLoading(false);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // redirect() di Next.js melempar NEXT_REDIRECT — jangan tangkap
+      if (error?.digest?.includes('NEXT_REDIRECT')) {
+        throw error;
+      }
       setErrorMessage("Terjadi kesalahan sistem. Silakan coba lagi.");
       setIsLoading(false);
     }
