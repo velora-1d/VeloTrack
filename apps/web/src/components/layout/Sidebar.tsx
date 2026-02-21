@@ -30,7 +30,7 @@ const OWNER_MENU = [
   {
     title: "Overview",
     items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, gradient: "from-blue-500 to-indigo-500", glow: "59,130,246" },
+      { name: "Dashboard", href: "/", icon: LayoutDashboard, gradient: "from-blue-500 to-indigo-500", glow: "59,130,246" },
     ]
   },
   {
@@ -67,7 +67,7 @@ const MITRA_MENU = [
   {
     title: "Overview",
     items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, gradient: "from-blue-500 to-indigo-500", glow: "59,130,246" },
+      { name: "Dashboard", href: "/", icon: LayoutDashboard, gradient: "from-blue-500 to-indigo-500", glow: "59,130,246" },
     ]
   },
   {
@@ -123,7 +123,7 @@ export function Sidebar({ userRole, userName, userEmail }: SidebarProps) {
             {/* Menu Items */}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
+                const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
                 const Icon = item.icon;
 
                 return (

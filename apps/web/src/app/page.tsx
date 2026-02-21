@@ -1,6 +1,3 @@
-import { redirect } from "next/navigation";
-
 export default function Home() {
-  // Sementara langsung ke /login. Nanti diatur oleh middleware jika sudah login.
-  redirect("/login");
+  return <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex justify-center items-center text-sm text-zinc-500">Memuat...</div>;
 }

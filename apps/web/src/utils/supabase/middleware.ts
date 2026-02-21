@@ -46,24 +46,34 @@ export async function updateSession(request: NextRequest) {
         request.nextUrl.pathname.startsWith('/reports') ||
         request.nextUrl.pathname.startsWith('/settings')
 
-    if (!user && isProtectedRoute) {
-        // no user, potentially respond by redirecting the user to the login page
-        const url = request.nextUrl.clone()
-        url.pathname = '/login'
-        return NextResponse.redirect(url)
+    // ============================================
+    // Logic Rewrite URL (URL tetap track.ve-lora.my.id)
+    // ============================================
+
+    const path = request.nextUrl.pathname;
+
+    // Jika tidak ada user dan mencoba akses root (/) -> Rewrite ke /login (URL tetap /)
+    if (!user && path === '/') {
+        return NextResponse.rewrite(new URL('/login', request.url));
     }
 
-    if (user && request.nextUrl.pathname === '/') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
-        return NextResponse.redirect(url)
+    // Jika tidak ada user dan mencoba akses route rahasia -> Redirect ke root (yang mana adalah form login)
+    if (!user && isProtectedRoute && path !== '/') {
+        const url = request.nextUrl.clone();
+        url.pathname = '/';
+        return NextResponse.redirect(url);
     }
 
+    // Jika ada user dan akses root (/) -> Rewrite ke /dashboard (URL tetap /)
+    if (user && path === '/') {
+        return NextResponse.rewrite(new URL('/dashboard', request.url));
+    }
+
+    // Jika ada user dan mencoba akses halaman /login langsung -> Redirect ke root (dashboard)
     if (user && isAuthRoute) {
-        // user is already logged in, redirect to dashboard
-        const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
-        return NextResponse.redirect(url)
+        const url = request.nextUrl.clone();
+        url.pathname = '/';
+        return NextResponse.redirect(url);
     }
 
     return supabaseResponse

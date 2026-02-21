@@ -114,7 +114,7 @@ export async function createIncome(data: {
         });
 
         revalidatePath("/finance/income");
-        revalidatePath("/dashboard");
+        revalidatePath("/");
         revalidatePath("/projects");
         return { success: true, data: income };
     } catch (error: any) {
@@ -178,7 +178,7 @@ export async function deleteIncome(id: string) {
         });
 
         revalidatePath("/finance/income");
-        revalidatePath("/dashboard");
+        revalidatePath("/");
         return { success: true };
     } catch (error) {
         console.error("Error deleting income:", error);
@@ -273,7 +273,7 @@ export async function createExpense(data: {
         });
 
         revalidatePath("/finance/expense");
-        revalidatePath("/dashboard");
+        revalidatePath("/");
         revalidatePath("/projects");
         return { success: true, data: expense };
     } catch (error: any) {
@@ -340,7 +340,7 @@ export async function deleteExpense(id: string) {
         });
 
         revalidatePath("/finance/expense");
-        revalidatePath("/dashboard");
+        revalidatePath("/");
         return { success: true };
     } catch (error) {
         console.error("Error deleting expense:", error);
