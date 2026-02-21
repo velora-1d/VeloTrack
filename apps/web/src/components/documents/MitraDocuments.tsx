@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { getDocumentsByMitra } from '@/lib/actions/documents'
-import { sendDocumentViaWhatsApp } from '@/lib/actions/whatsapp'
+import { sendDocumentViaWA } from '@/lib/actions/whatsapp'
 
 type DocumentType = 'PROPOSAL_CLIENT' | 'INVOICE_DP' | 'INVOICE_PELUNASAN' | 'INVOICE_FULL' | 'SURAT_PERJANJIAN_MITRA' | 'PROPOSAL_MITRA'
 
@@ -104,7 +104,7 @@ export default function MitraDocuments({
 
         setSendingWaId(doc.id)
         try {
-            const result = await sendDocumentViaWhatsApp(doc.id, targetPhone)
+            const result = await sendDocumentViaWA(doc.id, targetPhone)
             if (result.success) {
                 alert('✅ Berhasil dikirim via WhatsApp!')
                 loadDocuments() // refresh status
